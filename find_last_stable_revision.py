@@ -4,7 +4,9 @@ import urllib
 import sys
 
 def parse(url, tree=None):
-  url = "%s/api/python" % url
+  if url[-1] != "/":
+    url += "/"
+  url = "%sapi/python" % url
   if tree:
     url += "?tree=%s" % tree
   return ast.literal_eval(urllib.urlopen(url).read())
@@ -23,9 +25,17 @@ def clean_and_sort(sequence):
 def find_closest_previous_revision(revision, sequence):
   return max(filter(lambda x: x <= revision, sequence))
 
-def no_failures_since_last_stable(previous_stable_revision, eligible_revision, bad_revisions):
+def failures_since_last_stable(previous_stable_revision, eligible_revision, bad_revisions):
   for revision in range(previous_stable_revision, eligible_revision + 1):
     if revision in bad_revisions:
+      return True
+  return False
+
+def is_revision_valid(eligible_revision, good_revisions, bad_revisions):
+  for job_name in good_revisions:
+    good_job_revisions = clean_and_sort(good_revisions[job_name])
+    previous_stable_revision = find_closest_previous_revision(eligible_revision, good_job_revisions)
+    if failures_since_last_stable(previous_stable_revision, eligible_revision, bad_revisions):
       return False
   return True
 
@@ -33,21 +43,15 @@ def get_highest_stable_revision(eligible_revisions, good_revisions, bad_revision
 
   eligible_revisions = clean_and_sort(eligible_revisions)
   bad_revisions = clean_and_sort(bad_revisions)
-  
+
   for eligible_revision in eligible_revisions:
     if not eligible_revision in bad_revisions:
-      for job_name in good_revisions:
-        good_job_revisions = clean_and_sort(good_revisions[job_name])
-        previous_stable_revision = find_closest_previous_revision(eligible_revision, good_job_revisions)
-        if no_failures_since_last_stable(previous_stable_revision, eligible_revision, bad_revisions):
-          return eligible_revision
-  print -1
+      if is_revision_valid(eligible_revision, good_revisions, bad_revisions):
+        return eligible_revision
+  return -1
 
-def find_revision():
-  if len(sys.argv) < 2:
-    print "Error: No view URL supplied!\nUsage:\n%s URL" % sys.argv[0]
-    sys.exit(1)
-  view_details = parse(sys.argv[1], "jobs[name,url]")
+def find_revision(url):
+  view_details = parse(url, "jobs[name,url]")
 
   good_revisions = {}
   eligible_revisions = []
@@ -68,9 +72,10 @@ def find_revision():
         for item in build['changeSet']['items']:
           bad_revisions.append(item['revision'])
 
-  print
-  print "Last stable revision:"
-  print get_highest_stable_revision(eligible_revisions, good_revisions, bad_revisions)
+  return get_highest_stable_revision(eligible_revisions, good_revisions, bad_revisions)
 
 if __name__ == '__main__':
-  find_revision()
+  if len(sys.argv) < 2:
+    print "Error: No view URL supplied!\nUsage:\n%s URL" % sys.argv[0]
+    sys.exit(1)
+  print "Last stable revision: %d" % find_revision(sys.argv[1])
