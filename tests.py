@@ -86,6 +86,7 @@ class AcceptanceTest(unittest.TestCase):
   
   jobs_response = '{"jobs":[{"name":"job1","url":"http://jenkins/job/job1/"},{"name":"job2","url":"http://jenkins/job/job2/"}]}'
   job1_builds_response = '{"builds":[%s]}' % ','.join((build([20]),
+                                                       build([18]),
                                                        build([17], result='UNSTABLE'),
                                                        build([15], result='UNSTABLE'),
                                                        build([13])))
