@@ -22,9 +22,7 @@ def clean_and_sort(sequence):
 
 def get_highest_stable_revision(eligible_revisions, good_revisions, bad_revisions):
   def find_closest_previous_revision(revision, sequence):
-    for item in sequence:
-      if item <= revision:
-        return item
+    return max(filter(lambda x: x <= revision, sequence))
         
   def no_failures_since_last_stable(previous_stable_revision, eligible_revision, bad_revisions):
     for revision in range(previous_stable_revision, eligible_revision):
@@ -44,31 +42,34 @@ def get_highest_stable_revision(eligible_revisions, good_revisions, bad_revision
           return eligible_revision
   print -1
 
+def find_revision():
+  if len(sys.argv) < 2:
+    print "Error: No view URL supplied!\nUsage:\n%s URL" % sys.argv[0]
+    sys.exit(1)
+  view_details = parse(sys.argv[1], "jobs[name,url]")
 
-if len(sys.argv) < 2:
-  print "Error: No view URL supplied!\nUsage:\n%s URL" % sys.argv[0]
-  sys.exit(1)
-view_details = parse(sys.argv[1], "jobs[name,url]")
-
-good_revisions = {}
-eligible_revisions = []
-bad_revisions = []
-for job in view_details['jobs']:
-  print "Finding stable revisions for %s..." % job['name']
-  result = parse(job['url'], "builds[building,result,changeSet[items[revision]]]")
+  good_revisions = {}
+  eligible_revisions = []
+  bad_revisions = []
+  for job in view_details['jobs']:
+    print "Finding stable revisions for %s..." % job['name']
+    result = parse(job['url'], "builds[building,result,changeSet[items[revision]]]")
   
-  current_good_revisions = []
-  good_revisions[job['name']] = current_good_revisions
+    current_good_revisions = []
+    good_revisions[job['name']] = current_good_revisions
   
-  for build in result['builds']:
-    if not build['building'] and build['result'] == 'SUCCESS':
-      for item in build['changeSet']['items']:
-        current_good_revisions.append(item['revision'])
-        eligible_revisions.append(item['revision'])
-    else:
-      for item in build['changeSet']['items']:
-        bad_revisions.append(item['revision'])
+    for build in result['builds']:
+      if not build['building'] and build['result'] == 'SUCCESS':
+        for item in build['changeSet']['items']:
+          current_good_revisions.append(item['revision'])
+          eligible_revisions.append(item['revision'])
+      else:
+        for item in build['changeSet']['items']:
+          bad_revisions.append(item['revision'])
 
-print
-print "Last stable revision:"
-print get_highest_stable_revision(eligible_revisions, good_revisions, bad_revisions)  
+  print
+  print "Last stable revision:"
+  print get_highest_stable_revision(eligible_revisions, good_revisions, bad_revisions)
+
+if __name__ == '__main__':
+  find_revision()
