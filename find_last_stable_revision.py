@@ -20,16 +20,17 @@ def clean_and_sort(sequence):
   sequence.reverse()
   return sequence
 
+def find_closest_previous_revision(revision, sequence):
+  return max(filter(lambda x: x <= revision, sequence))
+
+def no_failures_since_last_stable(previous_stable_revision, eligible_revision, bad_revisions):
+  for revision in range(previous_stable_revision, eligible_revision + 1):
+    if revision in bad_revisions:
+      return False
+  return True
+
 def get_highest_stable_revision(eligible_revisions, good_revisions, bad_revisions):
-  def find_closest_previous_revision(revision, sequence):
-    return max(filter(lambda x: x <= revision, sequence))
-        
-  def no_failures_since_last_stable(previous_stable_revision, eligible_revision, bad_revisions):
-    for revision in range(previous_stable_revision, eligible_revision):
-      if revision in bad_revisions:
-        return False
-    return True
-  
+
   eligible_revisions = clean_and_sort(eligible_revisions)
   bad_revisions = clean_and_sort(bad_revisions)
   
