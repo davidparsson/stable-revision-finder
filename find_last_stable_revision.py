@@ -33,7 +33,7 @@ def failures_since_last_stable(previous_stable_revision, eligible_revision, bad_
       return True
   return False
 
-def is_revision_valid(eligible_revision, good_revisions, bad_revisions):
+def is_stable_revision(eligible_revision, good_revisions, bad_revisions):
   for job_name in good_revisions:
     good_job_revisions = clean_and_sort(good_revisions[job_name])
     previous_stable_revision = find_closest_previous_revision(eligible_revision, good_job_revisions)
@@ -48,7 +48,7 @@ def get_highest_stable_revision(eligible_revisions, good_revisions, bad_revision
 
   for eligible_revision in eligible_revisions:
     if not eligible_revision in bad_revisions:
-      if is_revision_valid(eligible_revision, good_revisions, bad_revisions):
+      if is_stable_revision(eligible_revision, good_revisions, bad_revisions):
         return eligible_revision
   return -1
 
