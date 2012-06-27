@@ -23,6 +23,8 @@ def clean_and_sort(sequence):
   return sequence
 
 def find_closest_previous_revision(revision, sequence):
+  if not sequence:
+    return -1
   return max(filter(lambda x: x <= revision, sequence))
 
 def failures_since_last_stable(previous_stable_revision, eligible_revision, bad_revisions):
@@ -59,10 +61,10 @@ def find_revision(url):
   for job in view_details['jobs']:
     print "Finding stable revisions for %s..." % job['name']
     result = parse(job['url'], "builds[building,result,changeSet[items[revision]]]")
-  
+
     current_good_revisions = []
     good_revisions[job['name']] = current_good_revisions
-  
+
     for build in result['builds']:
       if not build['building'] and build['result'] == 'SUCCESS':
         for item in build['changeSet']['items']:

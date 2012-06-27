@@ -77,38 +77,74 @@ class TestGetHighestStableRevision(unittest.TestCase):
     self.assertEquals(2, get_highest_stable_revision([4, 2, 1], {'job1': [1], 'job2': [4, 2]}, [3]))
 
 
-def build(revisions=[], building=False, result='SUCCESS'):
+def build(revisions=[], building=False, stable=True):
+  if stable:
+    result = 'SUCCESS'
+  else:
+    result = 'FAILURE'
+
+  if type(revisions) != list:
+    revisions = [revisions]
+
   return str({'building': building, 'result': result, 'changeSet': {'items': [{'revision': revision} for revision in revisions]}})
+
+def job(number):
+  return str({'name': 'job%d' % number, 'url': 'http://jenkins/job/job%d/' % number})
 
 class AcceptanceTest(unittest.TestCase):
 
   urllib = mock()
-  
-  jobs_response = '{"jobs":[{"name":"job1","url":"http://jenkins/job/job1/"},{"name":"job2","url":"http://jenkins/job/job2/"}]}'
-  job1_builds_response = '{"builds":[%s]}' % ','.join((build([20]),
-                                                       build([18]),
-                                                       build([17], result='UNSTABLE'),
-                                                       build([15], result='UNSTABLE'),
-                                                       build([13])))
-  job2_builds_response = '{"builds":[%s]}' % ','.join((build([20], building=True, result=None),
-                                                       build([19, 18], result='FAILURE'),
-                                                       build([16]),
-                                                       build([14])))
 
   def setUp(self):
     find_last_stable_revision.urllib = self.urllib
+    self. number_of_jobs = 0
 
-    def given_response_for_url(url, response):
-      open_url = mock()
-      when(self.urllib).urlopen(contains(url)).thenReturn(open_url)
-      when(open_url).read().thenReturn(response)
+  def given_job_with_builds(self, *builds):
+    url = "/job%d/api/python?tree=builds" % self.number_of_jobs
+    response = '{"builds":[%s]}' % ','.join(builds)
 
-    given_response_for_url("?tree=jobs", self.jobs_response)
-    given_response_for_url("/job1/api/python?tree=builds", self.job1_builds_response)
-    given_response_for_url("/job2/api/python?tree=builds", self.job2_builds_response)
+    self.number_of_jobs += 1
 
-  def test_find_last_stable_revision(self):
-    self.assertEqual(14, find_last_stable_revision.find_revision("url"))
+    self.given_response_for_url(url, response)
+    self.given_number_of_jobs(self.number_of_jobs)
+
+  def given_number_of_jobs(self, number_of_jobs):
+    response = '{"jobs":[%s]}' % ','.join([job(i) for i in range(number_of_jobs)])
+    self.given_response_for_url("?tree=jobs", response)
+
+  def given_response_for_url(self, url, response):
+    open_url = mock()
+    when(self.urllib).urlopen(contains(url)).thenReturn(open_url)
+    when(open_url).read().thenReturn(response)
+
+  def test_does_not_select_buildling_revision(self):
+    self.given_job_with_builds(build(2), build(1))
+    self.given_job_with_builds(build(2, building=True), build(1))
+    self.assertEqual(1, find_last_stable_revision.find_revision("url"))
+
+  def test_does_not_select_unstable_revision(self):
+    self.given_job_with_builds(build(2), build(1))
+    self.given_job_with_builds(build(2, stable=False), build(1))
+    self.assertEqual(1, find_last_stable_revision.find_revision("url"))
+
+  def test_does_not_select_revision_after_unstable_build(self):
+    self.given_job_with_builds(build(3), build(1))
+    self.given_job_with_builds(build(2, stable=False), build(1))
+    self.assertEqual(1, find_last_stable_revision.find_revision("url"))
+
+  def test_selects_highest_stable_revision(self):
+    self.given_job_with_builds(build(3), build(1))
+    self.given_job_with_builds(build(2), build(1))
+    self.assertEqual(3, find_last_stable_revision.find_revision("url"))
+
+  def test_selects_revision_even_if_not_built(self):
+    self.given_job_with_builds(build(1))
+    self.given_job_with_builds()
+    self.assertEqual(1, find_last_stable_revision.find_revision("url"))
+
+  def test_selects_highest_revision_when_multiple_changes(self):
+    self.given_job_with_builds(build([3, 2, 1]))
+    self.assertEqual(3, find_last_stable_revision.find_revision("url"))
 
 if __name__ == '__main__':
   unittest.main()
