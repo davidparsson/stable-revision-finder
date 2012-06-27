@@ -42,7 +42,6 @@ def is_stable_revision(eligible_revision, good_revisions, bad_revisions):
   return True
 
 def get_highest_stable_revision(eligible_revisions, good_revisions, bad_revisions):
-
   eligible_revisions = clean_and_sort(eligible_revisions)
   bad_revisions = clean_and_sort(bad_revisions)
 
