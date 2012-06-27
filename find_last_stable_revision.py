@@ -2,6 +2,7 @@
 import ast
 import urllib
 import sys
+import optparse
 
 def parse(url, tree=None):
   if url[-1] != "/":
@@ -76,8 +77,22 @@ def find_revision(url, verbose=False):
 
   return get_highest_stable_revision(eligible_revisions, stable_revisions_by_job, bad_revisions)
 
+def main():
+  parser = optparse.OptionParser(usage="""Usage: %prog VIEW_URL [options]
+
+Gets the highest common revision for all jobs in the supplied Jenkins view.""")
+  parser.add_option("-v", "--verbose", help="Prints progress, instead of only the revision", action="store_true", default=False)
+  try:
+    (options, (url,)) = parser.parse_args()
+    revision = find_revision(url, verbose=options.verbose)
+    if options.verbose:
+      print "Last stable revision: %d" % revision
+    else:
+      print revision
+    return 0
+  except ValueError:
+    parser.print_help()
+    return 1
+
 if __name__ == '__main__':
-  if len(sys.argv) < 2:
-    print "Error: No view URL supplied!\nUsage:\n%s URL" % sys.argv[0]
-    sys.exit(1)
-  print "Last stable revision: %d" % find_revision(sys.argv[1], verbose=True)
+  sys.exit(main())
