@@ -33,28 +33,28 @@ def failures_since_last_stable(previous_stable_revision, eligible_revision, bad_
       return True
   return False
 
-def is_stable_revision(eligible_revision, stable_build_revisions, bad_revisions):
-  for stable_job_revisions in stable_build_revisions.values():
+def is_stable_revision(eligible_revision, stable_revisions_by_job, bad_revisions):
+  for stable_job_revisions in stable_revisions_by_job.values():
     stable_job_revisions = clean_and_sort(stable_job_revisions)
     previous_stable_revision = find_closest_previous_revision(eligible_revision, stable_job_revisions)
     if failures_since_last_stable(previous_stable_revision, eligible_revision, bad_revisions):
       return False
   return True
 
-def get_highest_stable_revision(eligible_revisions, stable_build_revisions, bad_revisions):
+def get_highest_stable_revision(eligible_revisions, stable_revisions_by_job, bad_revisions):
   eligible_revisions = clean_and_sort(eligible_revisions)
   bad_revisions = clean_and_sort(bad_revisions)
 
   for eligible_revision in eligible_revisions:
     if not eligible_revision in bad_revisions:
-      if is_stable_revision(eligible_revision, stable_build_revisions, bad_revisions):
+      if is_stable_revision(eligible_revision, stable_revisions_by_job, bad_revisions):
         return eligible_revision
   return -1
 
 def find_revision(url, verbose=False):
   view_details = parse(url, "jobs[name,url]")
 
-  stable_build_revisions = {}
+  stable_revisions_by_job = {}
   eligible_revisions = []
   bad_revisions = []
   for job in view_details['jobs']:
@@ -62,19 +62,19 @@ def find_revision(url, verbose=False):
       print "Querying %s..." % job['name']
     result = parse(job['url'], "builds[building,result,changeSet[items[revision]]]")
 
-    current_stable_build_revisions = []
-    stable_build_revisions[job['name']] = current_stable_build_revisions
+    current_job_stable_revisions = []
+    stable_revisions_by_job[job['name']] = current_job_stable_revisions
 
     for build in result['builds']:
       if not build['building'] and build['result'] == 'SUCCESS':
         for item in build['changeSet']['items']:
-          current_stable_build_revisions.append(item['revision'])
+          current_job_stable_revisions.append(item['revision'])
           eligible_revisions.append(item['revision'])
       else:
         for item in build['changeSet']['items']:
           bad_revisions.append(item['revision'])
 
-  return get_highest_stable_revision(eligible_revisions, stable_build_revisions, bad_revisions)
+  return get_highest_stable_revision(eligible_revisions, stable_revisions_by_job, bad_revisions)
 
 if __name__ == '__main__':
   if len(sys.argv) < 2:
