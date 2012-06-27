@@ -60,7 +60,7 @@ def find_revision(url, print_progress=False):
   bad_revisions = []
   for job in view_details['jobs']:
     if print_progress:
-      print "Finding stable revisions for %s..." % job['name']
+      print "Querying %s..." % job['name']
     result = parse(job['url'], "builds[building,result,changeSet[items[revision]]]")
 
     current_good_revisions = []
