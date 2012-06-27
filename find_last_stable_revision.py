@@ -52,14 +52,14 @@ def get_highest_stable_revision(eligible_revisions, good_revisions, bad_revision
         return eligible_revision
   return -1
 
-def find_revision(url, print_progress=False):
+def find_revision(url, verbose=False):
   view_details = parse(url, "jobs[name,url]")
 
   good_revisions = {}
   eligible_revisions = []
   bad_revisions = []
   for job in view_details['jobs']:
-    if print_progress:
+    if verbose:
       print "Querying %s..." % job['name']
     result = parse(job['url'], "builds[building,result,changeSet[items[revision]]]")
 
@@ -81,4 +81,4 @@ if __name__ == '__main__':
   if len(sys.argv) < 2:
     print "Error: No view URL supplied!\nUsage:\n%s URL" % sys.argv[0]
     sys.exit(1)
-  print "Last stable revision: %d" % find_revision(sys.argv[1], print_progress=True)
+  print "Last stable revision: %d" % find_revision(sys.argv[1], verbose=True)
