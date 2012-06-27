@@ -145,6 +145,7 @@ def build(revisions=[], building=False, stable=True):
 
   return str({'building': building, 'result': result, 'changeSet': {'items': [{'revision': revision} for revision in revisions]}})
 
+
 def job(number):
   return str({'name': 'job%d' % number, 'url': 'http://jenkins/job/job%d/' % number})
 
