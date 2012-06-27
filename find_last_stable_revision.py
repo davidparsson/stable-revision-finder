@@ -34,9 +34,9 @@ def failures_since_last_stable(previous_stable_revision, eligible_revision, bad_
   return False
 
 def is_stable_revision(eligible_revision, stable_build_revisions, bad_revisions):
-  for job_name in stable_build_revisions:
-    good_job_revisions = clean_and_sort(stable_build_revisions[job_name])
-    previous_stable_revision = find_closest_previous_revision(eligible_revision, good_job_revisions)
+  for stable_job_revisions in stable_build_revisions.values():
+    stable_job_revisions = clean_and_sort(stable_job_revisions)
+    previous_stable_revision = find_closest_previous_revision(eligible_revision, stable_job_revisions)
     if failures_since_last_stable(previous_stable_revision, eligible_revision, bad_revisions):
       return False
   return True
