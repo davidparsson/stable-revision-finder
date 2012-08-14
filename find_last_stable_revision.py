@@ -88,7 +88,7 @@ def main():
   global verbose
   parser = optparse.OptionParser(usage="""Usage: %prog VIEW_URL [options]
 
-Gets the highest common revision for all jobs in the supplied Jenkins view.""")
+Gets the highest common stable revision for all jobs in the supplied Jenkins view.""")
   parser.add_option("-v", "--verbose", help="Prints progress, instead of only the revision", action="store_true", default=False)
   try:
     (options, (url,)) = parser.parse_args()
