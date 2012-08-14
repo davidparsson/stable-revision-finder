@@ -1,4 +1,8 @@
 #!/usr/bin/python
+#
+# Run tests using Python 2.7 with the command
+# python tests.py
+#
 import unittest
 from mockito import mock, when, contains, any
 from find_last_stable_revision import *
