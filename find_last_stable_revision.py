@@ -4,6 +4,28 @@ import urllib
 import sys
 import optparse
 
+class RevisionStatuses():
+
+  STABLE = True
+  UNSTABLE = False
+
+  def __init__(self):
+    self._revision_results = {}
+
+  def add_stable_revision(self, revision):
+    self._revision_results[revision] = self.STABLE
+
+  def add_unstable_revision(self, revision):
+    self._revision_results[revision] = self.UNSTABLE
+
+  def is_revision_stable(self, revision):
+    while revision > 0:
+      if revision in self._revision_results.keys():
+        return self._revision_results[revision]
+      revision -= 1
+    return None
+
+
 def parse(url, tree=None):
   if url[-1] != "/":
     url += "/"
@@ -12,70 +34,47 @@ def parse(url, tree=None):
     url += "?tree=%s" % tree
   return ast.literal_eval(urllib.urlopen(url).read())
 
-def remove_duplicates(sequence):
-  seen = set()
-  seen_add = seen.add
-  return [x for x in sequence if x not in seen and not seen_add(x)]
+def is_stable_revision(eligible_revision, revisions_by_job):
+  any_stable = False
+  for revision_statuses in revisions_by_job.values():
+    stable = revision_statuses.is_revision_stable(eligible_revision)
+    if stable is not None:
+      if not stable:
+        return False
+      any_stable = True
+  return any_stable
 
-def clean_and_sort(sequence):
-  sequence = remove_duplicates(sequence)
-  sequence.sort()
-  sequence.reverse()
-  return sequence
-
-def find_closest_previous_revision(revision, sequence):
-  if not sequence:
-    return -1
-  return max(filter(lambda x: x <= revision, sequence))
-
-def failures_since_last_stable(previous_stable_revision, eligible_revision, bad_revisions):
-  for revision in range(previous_stable_revision, eligible_revision + 1):
-    if revision in bad_revisions:
-      return True
-  return False
-
-def is_stable_revision(eligible_revision, stable_revisions_by_job, bad_revisions):
-  for stable_job_revisions in stable_revisions_by_job.values():
-    stable_job_revisions = clean_and_sort(stable_job_revisions)
-    previous_stable_revision = find_closest_previous_revision(eligible_revision, stable_job_revisions)
-    if failures_since_last_stable(previous_stable_revision, eligible_revision, bad_revisions):
-      return False
-  return True
-
-def get_highest_stable_revision(eligible_revisions, stable_revisions_by_job, bad_revisions):
-  eligible_revisions = clean_and_sort(eligible_revisions)
-  bad_revisions = clean_and_sort(bad_revisions)
-
+def get_highest_stable_revision(eligible_revisions, revisions_by_job):
+  eligible_revisions.sort(reverse=True)
   for eligible_revision in eligible_revisions:
-    if not eligible_revision in bad_revisions:
-      if is_stable_revision(eligible_revision, stable_revisions_by_job, bad_revisions):
-        return eligible_revision
+    if is_stable_revision(eligible_revision, revisions_by_job):
+      return eligible_revision
   return -1
 
 def find_revision(url, verbose=False):
   view_details = parse(url, "jobs[name,url]")
 
-  stable_revisions_by_job = {}
+  revisions_by_job = {}
   eligible_revisions = []
-  bad_revisions = []
   for job in view_details['jobs']:
     if verbose:
       print "Querying %s..." % job['name']
     result = parse(job['url'], "builds[building,result,changeSet[items[revision]]]")
 
-    current_job_stable_revisions = []
-    stable_revisions_by_job[job['name']] = current_job_stable_revisions
+    revision_statuses = RevisionStatuses()
+    revisions_by_job[job['name']] = revision_statuses
 
     for build in result['builds']:
       if not build['building'] and build['result'] == 'SUCCESS':
         for item in build['changeSet']['items']:
-          current_job_stable_revisions.append(item['revision'])
-          eligible_revisions.append(item['revision'])
+          revision = item['revision']
+          revision_statuses.add_stable_revision(revision)
+          eligible_revisions.append(revision)
       else:
         for item in build['changeSet']['items']:
-          bad_revisions.append(item['revision'])
+          revision_statuses.add_unstable_revision(item['revision'])
 
-  return get_highest_stable_revision(eligible_revisions, stable_revisions_by_job, bad_revisions)
+  return get_highest_stable_revision(eligible_revisions, revisions_by_job)
 
 def main():
   parser = optparse.OptionParser(usage="""Usage: %prog VIEW_URL [options]

@@ -28,6 +28,11 @@ class AcceptanceTest(unittest.TestCase):
     self.given_job_with_builds(build(2, stable=False), build(1))
     self.assertEqual(1, find_last_stable_revision.find_revision("url"))
 
+  def test_selects_stable_revision_after_unstable_build(self):
+    self.given_job_with_builds(build(2), build(1))
+    self.given_job_with_builds(build(3), build(2, stable=False), build(1))
+    self.assertEqual(3, find_last_stable_revision.find_revision("url"))
+
   def test_selects_highest_stable_revision(self):
     self.given_job_with_builds(build(3), build(1))
     self.given_job_with_builds(build(2), build(1))
@@ -38,9 +43,19 @@ class AcceptanceTest(unittest.TestCase):
     self.given_job_with_builds()
     self.assertEqual(1, find_last_stable_revision.find_revision("url"))
 
+  def test_does_not_selects_revision_when_none_built(self):
+    self.given_job_with_builds()
+    self.given_job_with_builds()
+    self.assertEqual(-1, find_last_stable_revision.find_revision("url"))
+
   def test_selects_highest_revision_when_multiple_changes(self):
     self.given_job_with_builds(build([3, 2, 1]))
     self.assertEqual(3, find_last_stable_revision.find_revision("url"))
+
+  def test_selects_highest_revision_when_not_sorted(self):
+    self.given_job_with_builds(build(2), build([1, 7, 3]), build(4))
+    self.given_job_with_builds(build(6), build(2), build(5))
+    self.assertEqual(7, find_last_stable_revision.find_revision("url"))
 
   def given_job_with_builds(self, *builds):
     url = "/job%d/api/python?tree=builds" % self.number_of_jobs
@@ -61,77 +76,30 @@ class AcceptanceTest(unittest.TestCase):
     when(open_url).read().thenReturn(response)
 
 
-class TestSequenceFunctions(unittest.TestCase):
-
-  def test_removes_duplicates(self):
-    sequence = remove_duplicates([5, 2, 5, 5, 1])
-    self.assertEqual([5, 2, 1], sequence)
-
-
-class TestCleanAndSort(unittest.TestCase):
-
-  def test_removes_duplicates(self):
-    sequence = clean_and_sort([5, 5])
-    self.assertEquals([5], sequence)
-
-  def test_sorts_reversed(self):
-    sequence = clean_and_sort([5, 1, 4])
-    self.assertEquals([5, 4, 1], sequence)
-
-
-class TestFindClosestPreviousRevision(unittest.TestCase):
-
-  revisions = [2, 6, 3, 1]
-
-  def test_finds_same_if_existing(self):
-    revision = find_closest_previous_revision(3, self.revisions)
-    self.assertEquals(3, revision)
-
-  def test_finds_lesser_if_not_existing(self):
-    revision = find_closest_previous_revision(4, self.revisions)
-    self.assertEquals(3, revision)
-
-
-class TestNoFailuresSinceLastStable(unittest.TestCase):
-
-  def test_bad_revisions_between(self):
-    self.assertTrue(failures_since_last_stable(10, 20, [15]))
-
-  def test_bad_revisions_same_as_lower(self):
-    self.assertTrue(failures_since_last_stable(10, 20, [10]))
-
-  def test_bad_revisions_same_as_upper(self):
-    self.assertTrue(failures_since_last_stable(10, 20, [20]))
-
-  def test_no_bad_revisions(self):
-    self.assertFalse(failures_since_last_stable(10, 20, []))
-
-  def test_bad_revisions_before_and_after(self):
-    self.assertFalse(failures_since_last_stable(10, 20, [5, 30]))
-
-
-class TestGetHighestStableRevision(unittest.TestCase):
+class TestRevisionStatuses(unittest.TestCase):
 
   def setUp(self):
-    self.eligible_revisions = [1, 2, 3, 5, 7]
-    self.bad_revisions = [2, 4, 6]
-    self.good_revisions = {'job1': [1, 3, 4],
-                           'job2': [3]}
+    self.revision_statuses = RevisionStatuses()
 
-  def test_minus_one_when_no_revision_found(self):
-    self.assertEquals(-1, get_highest_stable_revision([], {}, []))
+  def test_not_stable_when_no_added_revisions(self):
+    self.assertIsNone(self.revision_statuses.is_revision_stable(1))
 
-  def test_finds_revision(self):
-    self.assertEquals(1, get_highest_stable_revision([1], {'job1': [1]}, []))
+  def test_added_stable_revision_is_stable(self):
+    self.revision_statuses.add_stable_revision(1)
+    self.assertTrue(self.revision_statuses.is_revision_stable(1))
 
-  def test_finds_highest_when_no_failures(self):
-    self.assertEquals(2, get_highest_stable_revision([1, 2], {'job1': [1], 'job2': [1]}, []))
+  def test_revision_after_added_stable_revision_is_stable(self):
+    self.revision_statuses.add_stable_revision(1)
+    self.assertTrue(self.revision_statuses.is_revision_stable(2))
 
-  def test_finds_highest_without_failures(self):
-    self.assertEquals(1, get_highest_stable_revision([1, 2], {'job1': [1], 'job2': [1]}, [2]))
+  def test_revision_before_added_stable_revision_not_stable(self):
+    self.revision_statuses.add_stable_revision(2)
+    self.assertIsNone(self.revision_statuses.is_revision_stable(1))
 
-  def test_selects_lower_if_failures_between(self):
-    self.assertEquals(2, get_highest_stable_revision([4, 2, 1], {'job1': [1], 'job2': [4, 2]}, [3]))
+  def test_added_unstable_revision_is_not_stable(self):
+    self.revision_statuses.add_stable_revision(1)
+    self.revision_statuses.add_unstable_revision(2)
+    self.assertFalse(self.revision_statuses.is_revision_stable(2))
 
 
 def build(revisions=[], building=False, stable=True):
