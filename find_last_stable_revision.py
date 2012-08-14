@@ -4,6 +4,8 @@ import urllib
 import sys
 import optparse
 
+verbose = False
+
 class RevisionStatuses():
 
   STABLE = True
@@ -36,10 +38,12 @@ def parse(url, tree=None):
 
 def is_stable_revision(eligible_revision, revisions_by_job):
   any_stable = False
-  for revision_statuses in revisions_by_job.values():
+  for job_name in revisions_by_job.keys():
+    revision_statuses = revisions_by_job[job_name]
     stable = revision_statuses.is_revision_stable(eligible_revision)
     if stable is not None:
       if not stable:
+        print_if_verbose("Revision %d unstable for %s!" % (eligible_revision, job_name))
         return False
       any_stable = True
   return any_stable
@@ -55,10 +59,9 @@ def find_revision(url, verbose=False):
   view_details = parse(url, "jobs[name,url]")
 
   revisions_by_job = {}
-  eligible_revisions = []
+  eligible_revisions = set()
   for job in view_details['jobs']:
-    if verbose:
-      print "Querying %s..." % job['name']
+    print_if_verbose("Querying %s..." % job['name'])
     result = parse(job['url'], "builds[building,result,changeSet[items[revision]]]")
 
     revision_statuses = RevisionStatuses()
@@ -69,22 +72,29 @@ def find_revision(url, verbose=False):
         for item in build['changeSet']['items']:
           revision = item['revision']
           revision_statuses.add_stable_revision(revision)
-          eligible_revisions.append(revision)
+          eligible_revisions.add(revision)
       else:
         for item in build['changeSet']['items']:
           revision_statuses.add_unstable_revision(item['revision'])
 
-  return get_highest_stable_revision(eligible_revisions, revisions_by_job)
+  return get_highest_stable_revision(list(eligible_revisions), revisions_by_job)
+
+def print_if_verbose(message):
+  if verbose:
+    print message
 
 def main():
+  global verbose
   parser = optparse.OptionParser(usage="""Usage: %prog VIEW_URL [options]
 
 Gets the highest common revision for all jobs in the supplied Jenkins view.""")
   parser.add_option("-v", "--verbose", help="Prints progress, instead of only the revision", action="store_true", default=False)
   try:
     (options, (url,)) = parser.parse_args()
-    revision = find_revision(url, verbose=options.verbose)
-    if options.verbose:
+    verbose = options.verbose
+    revision = find_revision(url)
+    if verbose:
+      print
       print "Last stable revision: %d" % revision
     else:
       print revision
