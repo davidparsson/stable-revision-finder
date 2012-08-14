@@ -101,6 +101,12 @@ class TestRevisionStatuses(unittest.TestCase):
     self.revision_statuses.add_unstable_revision(2)
     self.assertFalse(self.revision_statuses.is_revision_stable(2))
 
+  def test_revision_is_stable_if_stable_once(self):
+    self.revision_statuses.add_unstable_revision(1)
+    self.revision_statuses.add_stable_revision(1)
+    self.revision_statuses.add_unstable_revision(1)
+    self.assertTrue(self.revision_statuses.is_revision_stable(1))
+
 
 def build(revisions=[], building=False, stable=True):
   if stable:

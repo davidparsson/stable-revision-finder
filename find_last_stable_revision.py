@@ -18,7 +18,8 @@ class RevisionStatuses():
     self._revision_results[revision] = self.STABLE
 
   def add_unstable_revision(self, revision):
-    self._revision_results[revision] = self.UNSTABLE
+    if self._revision_results.get(revision) != self.STABLE:
+      self._revision_results[revision] = self.UNSTABLE
 
   def is_revision_stable(self, revision):
     while revision > 0:
