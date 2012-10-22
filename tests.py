@@ -22,6 +22,11 @@ class AcceptanceTest(unittest.TestCase):
     self.given_job_with_builds(build(2, building=True), build(1))
     self.assertEqual(1, find_last_stable_revision.find_revision("url"))
 
+  def test_does_not_select_revision_after_buildling_revision(self):
+    self.given_job_with_builds(build(3), build(1))
+    self.given_job_with_builds(build(2, building=True), build(1))
+    self.assertEqual(1, find_last_stable_revision.find_revision("url"))
+
   def test_does_not_select_unstable_revision(self):
     self.given_job_with_builds(build(2), build(1))
     self.given_job_with_builds(build(2, stable=False), build(1))
