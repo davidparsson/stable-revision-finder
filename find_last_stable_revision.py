@@ -8,8 +8,10 @@ verbose = False
 
 class RevisionStatuses():
 
-  STABLE = True
-  UNSTABLE = False
+  STABLE = 1
+  BUILDING = 2
+  NOT_BUILT = 3
+  UNSTABLE = 4
 
   def __init__(self):
     self._revision_results = {}
@@ -21,12 +23,25 @@ class RevisionStatuses():
     if self._revision_results.get(revision) != self.STABLE:
       self._revision_results[revision] = self.UNSTABLE
 
+  def add_building_revision(self, revision):
+    self._revision_results[revision] = self.BUILDING
+
   def is_revision_stable(self, revision):
     while revision > 0:
       if revision in self._revision_results.keys():
-        return self._revision_results[revision]
+        return self._revision_results[revision] == self.STABLE
       revision -= 1
     return None
+
+  def get_status_for(self, revision):
+    return self._revision_results.get(revision, self.NOT_BUILT)
+
+  def get_status_as_text_for(self, revision):
+    dictionary = {self.STABLE: "STABLE",
+                  self.UNSTABLE: "UNSTABLE",
+                  self.BUILDING: "BUILDING",
+                  self.NOT_BUILT: "NOT BUILT"}
+    return dictionary[self.get_status_for(revision)]
 
 
 def parse(url, tree=None):
@@ -44,7 +59,8 @@ def is_stable_revision(eligible_revision, revisions_by_job):
     stable = revision_statuses.is_revision_stable(eligible_revision)
     if stable is not None:
       if not stable:
-        print_if_verbose("Revision %d unstable for %s!" % (eligible_revision, job_name))
+        status = revision_statuses.get_status_as_text_for(eligible_revision)
+        print_if_verbose("Revision %d is %s for %s!" % (eligible_revision, status, job_name))
         return False
       any_stable = True
   return any_stable
@@ -69,7 +85,10 @@ def find_revision(url, verbose=False):
     revisions_by_job[job['name']] = revision_statuses
 
     for build in result['builds']:
-      if not build['building'] and build['result'] == 'SUCCESS':
+      if build['building']:
+        for item in build['changeSet']['items']:
+          revision_statuses.add_building_revision(item['revision'])
+      elif build['result'] == 'SUCCESS':
         for item in build['changeSet']['items']:
           revision = item['revision']
           revision_statuses.add_stable_revision(revision)
