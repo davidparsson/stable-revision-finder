@@ -3,6 +3,8 @@ Stable Revision Finder
 
 Finds the latest common stable revision for all builds in a Jenkins view.
 
+Useful for finding a commonly releasable revision across many different Jenkins jobs. 
+
 Usage
 -----
 To get the latest stable revision, run:
