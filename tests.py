@@ -4,6 +4,7 @@
 # python tests.py
 #
 import unittest
+import xmlrunner
 from mockito import mock, when, contains, any
 from find_last_stable_revision import *
 import find_last_stable_revision
@@ -134,4 +135,4 @@ def job(number):
 
 
 if __name__ == '__main__':
-  unittest.main()
+  unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'))
