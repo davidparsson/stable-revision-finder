@@ -19,7 +19,7 @@ python find_last_stable_revision.py http://[jenkins host]/view/[view name]/ --ve
 
 Running the Tests
 -----------------
-The tests uses two packages to be installed. `mockito` and `unittest-xml-reporting`. They
+The tests uses two packages to be installed, `mockito` and `unittest-xml-reporting`. They
 can be installed using `easy_install` like this:
 
 <pre>
