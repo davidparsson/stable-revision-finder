@@ -16,3 +16,14 @@ If you want more details on what's going on, append the `--verbose` flag:
 <pre>
 python find_last_stable_revision.py http://[jenkins host]/view/[view name]/ --verbose
 </pre>
+
+Running the Tests
+-----------------
+The tests uses two packages to be installed:
+
+<pre>
+easy_install mockito
+easy_install unittest-xml-reporting
+</pre>
+
+The tests can then be run by executing `./tests.py`.
