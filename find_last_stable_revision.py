@@ -76,7 +76,6 @@ def get_highest_stable_revision(eligible_revisions, revisions_by_job):
             return eligible_revision
     return -1
 
-
 def find_revision(url, verbose=False):
     view_details = parse(url, "jobs[name,url]")
 
