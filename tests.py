@@ -70,7 +70,7 @@ class AcceptanceTest(unittest.TestCase):
 
     def given_job_with_builds(self, *builds):
         url = "/job%d/api/python?tree=builds" % self.number_of_jobs
-        response = '{"builds":[%s]}' % ','.join(builds)
+        response = self.create_builds_response(builds)
 
         self.number_of_jobs += 1
 
@@ -78,13 +78,19 @@ class AcceptanceTest(unittest.TestCase):
         self.given_number_of_jobs(self.number_of_jobs)
 
     def given_number_of_jobs(self, number_of_jobs):
-        response = '{"jobs":[%s]}' % ','.join([job(i) for i in range(number_of_jobs)])
+        response = self.create_jobs_response(number_of_jobs)
         self.given_response_for_url("?tree=jobs", response)
 
     def given_response_for_url(self, url, response):
         open_url = mock()
         when(self.urllib).urlopen(contains(url)).thenReturn(open_url)
         when(open_url).read().thenReturn(response)
+
+    def create_jobs_response(self, number_of_jobs):
+        return '{"jobs":[%s]}' % ','.join([job(i) for i in range(number_of_jobs)])
+
+    def create_builds_response(self, *builds):
+        return '{"builds":[%s]}' % ','.join(builds)
 
 
 class TestRevisionStatuses(unittest.TestCase):
