@@ -13,6 +13,7 @@ import find_last_stable_revision
 class AcceptanceTest(unittest.TestCase):
 
     urllib = mock()
+    view_url = "http://jenkins/view"
 
     def setUp(self):
         find_last_stable_revision.urllib = self.urllib
@@ -21,51 +22,51 @@ class AcceptanceTest(unittest.TestCase):
     def test_does_not_select_buildling_revision(self):
         self.given_job_with_builds(build(2), build(1))
         self.given_job_with_builds(build(2, building=True), build(1))
-        self.assertEqual(1, find_last_stable_revision.find_revision("url"))
+        self.assertEqual(1, find_last_stable_revision.find_revision(self.view_url))
 
     def test_does_not_select_revision_after_buildling_revision(self):
         self.given_job_with_builds(build(3), build(1))
         self.given_job_with_builds(build(2, building=True), build(1))
-        self.assertEqual(1, find_last_stable_revision.find_revision("url"))
+        self.assertEqual(1, find_last_stable_revision.find_revision(self.view_url))
 
     def test_does_not_select_unstable_revision(self):
         self.given_job_with_builds(build(2), build(1))
         self.given_job_with_builds(build(2, stable=False), build(1))
-        self.assertEqual(1, find_last_stable_revision.find_revision("url"))
+        self.assertEqual(1, find_last_stable_revision.find_revision(self.view_url))
 
     def test_does_not_select_revision_after_unstable_build(self):
         self.given_job_with_builds(build(3), build(1))
         self.given_job_with_builds(build(2, stable=False), build(1))
-        self.assertEqual(1, find_last_stable_revision.find_revision("url"))
+        self.assertEqual(1, find_last_stable_revision.find_revision(self.view_url))
 
     def test_selects_stable_revision_after_unstable_build(self):
         self.given_job_with_builds(build(2), build(1))
         self.given_job_with_builds(build(3), build(2, stable=False), build(1))
-        self.assertEqual(3, find_last_stable_revision.find_revision("url"))
+        self.assertEqual(3, find_last_stable_revision.find_revision(self.view_url))
 
     def test_selects_highest_stable_revision(self):
         self.given_job_with_builds(build(3), build(1))
         self.given_job_with_builds(build(2), build(1))
-        self.assertEqual(3, find_last_stable_revision.find_revision("url"))
+        self.assertEqual(3, find_last_stable_revision.find_revision(self.view_url))
 
     def test_selects_revision_even_if_not_built(self):
         self.given_job_with_builds(build(1))
         self.given_job_with_builds()
-        self.assertEqual(1, find_last_stable_revision.find_revision("url"))
+        self.assertEqual(1, find_last_stable_revision.find_revision(self.view_url))
 
     def test_does_not_selects_revision_when_none_built(self):
         self.given_job_with_builds()
         self.given_job_with_builds()
-        self.assertEqual(-1, find_last_stable_revision.find_revision("url"))
+        self.assertEqual(-1, find_last_stable_revision.find_revision(self.view_url))
 
     def test_selects_highest_revision_when_multiple_changes(self):
         self.given_job_with_builds(build([3, 2, 1]))
-        self.assertEqual(3, find_last_stable_revision.find_revision("url"))
+        self.assertEqual(3, find_last_stable_revision.find_revision(self.view_url))
 
     def test_selects_highest_revision_when_not_sorted(self):
         self.given_job_with_builds(build(2), build([1, 7, 3]), build(4))
         self.given_job_with_builds(build(6), build(2), build(5))
-        self.assertEqual(7, find_last_stable_revision.find_revision("url"))
+        self.assertEqual(7, find_last_stable_revision.find_revision(self.view_url))
 
     def given_job_with_builds(self, *builds):
         url = "/job%d/api/python?tree=builds" % self.number_of_jobs
