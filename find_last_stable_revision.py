@@ -51,6 +51,7 @@ def parse(url, tree=None):
     url = "%sapi/python" % url
     if tree:
         url += "?tree=%s" % tree
+    print_if_debug("Parsing %s" % url)
     return ast.literal_eval(urllib.urlopen(url).read())
 
 
@@ -105,19 +106,24 @@ def find_revision(url, verbose=False):
 
 
 def print_if_verbose(message):
-    if verbose:
+    if verbose or debug:
         print message
 
+def print_if_debug(message):
+    if debug:
+        print message
 
 def main():
-    global verbose
+    global verbose, debug
     parser = optparse.OptionParser(usage="""Usage: %prog VIEW_URL [options]
 
 Gets the highest common stable revision for all jobs in the supplied Jenkins view.""")
     parser.add_option("-v", "--verbose", help="Prints progress, instead of only the revision", action="store_true", default=False)
+    parser.add_option("-d", "--debug", help="Prints web requests", action="store_true", default=False)
     try:
         (options, (url,)) = parser.parse_args()
         verbose = options.verbose
+        debug = options.debug
         revision = find_revision(url)
         if verbose:
             print
