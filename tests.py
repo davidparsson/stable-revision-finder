@@ -91,7 +91,7 @@ class AcceptanceTest(unittest.TestCase):
     def create_jobs_response(self, number_of_jobs):
         return '{"jobs":[%s]}' % ','.join([job(i) for i in range(number_of_jobs)])
 
-    def create_builds_response(self, *builds):
+    def create_builds_response(self, builds):
         return '{"builds":[%s]}' % ','.join(builds)
 
 
