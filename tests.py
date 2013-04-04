@@ -69,9 +69,11 @@ class AcceptanceTest(unittest.TestCase):
         self.assertEqual(7, find_last_stable_revision.find_revision(self.view_url))
 
     def given_job_with_builds(self, *builds):
-        url = "http://jenkins/job/job%d/api/python?tree=builds" % self.number_of_jobs
         response = self.create_builds_response(builds)
+        self.given_new_job_with_response(response)
 
+    def given_new_job_with_response(self, response):
+        url = "http://jenkins/job/job%d/api/python?tree=builds" % self.number_of_jobs
         self.number_of_jobs += 1
 
         self.given_response_for_url(url, response)
