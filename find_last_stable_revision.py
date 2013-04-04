@@ -5,7 +5,7 @@ import sys
 import optparse
 
 verbose = False
-
+debug = False
 
 class RevisionStatuses():
 
