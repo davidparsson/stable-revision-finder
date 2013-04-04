@@ -3,6 +3,7 @@ import ast
 import urllib
 import sys
 import optparse
+import re
 
 verbose = False
 debug = False
@@ -83,7 +84,8 @@ def find_revision(url, verbose=False):
     eligible_revisions = set()
     for job in view_details['jobs']:
         print_if_verbose("Querying %s..." % job['name'])
-        result = parse(job['url'], "builds[building,result,changeSet[items[revision]]]")
+        job_url = get_second_url_with_first_host(url, job['url'])
+        result = parse(job_url, "builds[building,result,changeSet[items[revision]]]")
 
         revision_statuses = RevisionStatuses()
         revisions_by_job[job['name']] = revision_statuses
@@ -103,6 +105,14 @@ def find_revision(url, verbose=False):
 
     return get_highest_stable_revision(list(eligible_revisions), revisions_by_job)
 
+def get_second_url_with_first_host(from_url, to_url):
+    from_host = split_after_host(from_url)[0]
+    to_path = split_after_host(to_url)[1]
+    return '%s/%s' % (from_host, to_path)
+
+def split_after_host(url):
+    single_slash_pattern = '(?<!/)/(?!/)'
+    return re.split(single_slash_pattern, url, 1)
 
 def print_if_verbose(message):
     if verbose or debug:

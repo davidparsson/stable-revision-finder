@@ -68,6 +68,11 @@ class AcceptanceTest(unittest.TestCase):
         self.given_job_with_builds(build(6), build(2), build(5))
         self.assertEqual(7, find_last_stable_revision.find_revision(self.view_url))
 
+    def test_uses_host_from_argument(self):
+        self.given_job_with_builds(build(2))
+        self.given_configured_jenkins_host_is("http://proxyhost/")
+        self.assertEqual(2, find_last_stable_revision.find_revision(self.view_url))
+
     def given_job_with_builds(self, *builds):
         response = self.create_builds_response(builds)
         self.given_new_job_with_response(response)
@@ -87,6 +92,11 @@ class AcceptanceTest(unittest.TestCase):
         open_url = mock()
         when(self.urllib).urlopen(contains(url)).thenReturn(open_url)
         when(open_url).read().thenReturn(response)
+
+    def given_configured_jenkins_host_is(self, host):
+        response = self.create_jobs_response(self.number_of_jobs)
+        response.replace("http://jenkins/", host)
+        self.given_response_for_url("?tree=jobs", response)
 
     def create_jobs_response(self, number_of_jobs):
         return '{"jobs":[%s]}' % ','.join([job(i) for i in range(number_of_jobs)])
