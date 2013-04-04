@@ -16,7 +16,7 @@ class AcceptanceTest(unittest.TestCase):
 
     def setUp(self):
         find_last_stable_revision.urllib = self.urllib
-        self. number_of_jobs = 0
+        self.number_of_jobs = 0
 
     def test_does_not_select_buildling_revision(self):
         self.given_job_with_builds(build(2), build(1))
