@@ -1,7 +1,10 @@
 #!/usr/bin/python
 #
 # Run tests using Python 2.7 with the command
-# python tests.py
+#  python tests.py
+# after installing the dependencies
+#  sudo easy_install unittest-xml-reporting
+#  sudo easy_install mockito
 #
 import unittest
 import xmlrunner
