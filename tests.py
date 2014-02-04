@@ -94,6 +94,11 @@ class AcceptanceTest(unittest.TestCase):
         self.given_job_with_builds(build(3, timestamp=3), build(2, timestamp=2))
         self.assertEqual(2, find_last_stable_revision.find_revision(self.view_url)[1].seconds)
 
+    def test_gets_timestamp_for_stable_revision(self):
+        self.given_time_is(5)
+        self.given_job_with_builds(build(3, timestamp=3, stable=False), build(2, timestamp=2))
+        self.assertEqual(3, find_last_stable_revision.find_revision(self.view_url)[1].seconds)
+
     def given_time_is(self, timestamp):
         when(self.datetime_mock).now().thenReturn(datetime.fromtimestamp(timestamp))
 
