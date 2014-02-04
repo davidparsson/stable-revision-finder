@@ -4,6 +4,8 @@ import urllib
 import sys
 import optparse
 import re
+import sys
+from datetime import datetime
 
 verbose = False
 debug = False
@@ -39,10 +41,10 @@ class RevisionStatuses():
         return self._revision_results.get(revision, self.NOT_BUILT)
 
     def get_status_as_text_for(self, revision):
-        dictionary = {self.STABLE: "STABLE",
-                                    self.UNSTABLE: "UNSTABLE",
-                                    self.BUILDING: "BUILDING",
-                                    self.NOT_BUILT: "NOT BUILT"}
+        dictionary = { self.STABLE: "STABLE",
+                       self.UNSTABLE: "UNSTABLE",
+                       self.BUILDING: "BUILDING",
+                       self.NOT_BUILT: "NOT BUILT" }
         return dictionary[self.get_status_for(revision)]
 
 
@@ -77,20 +79,29 @@ def get_highest_stable_revision(eligible_revisions, revisions_by_job):
             return eligible_revision
     return -1
 
+def get_timestamp_for_revision(view_details, revision):
+    for job in view_details['jobs']:
+        for build in job['builds']:
+            for changeSetItem in build['changeSet']['items']:
+                if changeSetItem['revision'] == revision:
+                    return int(changeSetItem['timestamp']) / 1e3
+    return -1
+
+def get_age_of_revision(view_details, revision):
+    revision_timestamp = get_timestamp_for_revision(view_details, revision)
+    return datetime.now() - datetime.fromtimestamp(revision_timestamp)
+
 def find_revision(url, verbose=False):
-    view_details = parse(url, "jobs[name,url]")
+    view_details = parse(url, "jobs[name,url,builds[building,result,changeSet[items[revision,timestamp]]]]")
 
     revisions_by_job = {}
     eligible_revisions = set()
     for job in view_details['jobs']:
-        print_if_verbose("Querying %s..." % job['name'])
-        job_url = get_second_url_with_first_host(url, job['url'])
-        result = parse(job_url, "builds[building,result,changeSet[items[revision]]]")
-
+        print_if_verbose("Checking %s..." % job['name'])
         revision_statuses = RevisionStatuses()
         revisions_by_job[job['name']] = revision_statuses
 
-        for build in result['builds']:
+        for build in job['builds']:
             if build['building']:
                 for item in build['changeSet']['items']:
                     revision_statuses.add_building_revision(item['revision'])
@@ -102,8 +113,8 @@ def find_revision(url, verbose=False):
             else:
                 for item in build['changeSet']['items']:
                     revision_statuses.add_unstable_revision(item['revision'])
-
-    return get_highest_stable_revision(list(eligible_revisions), revisions_by_job)
+    revision = get_highest_stable_revision(list(eligible_revisions), revisions_by_job)
+    return (revision, get_age_of_revision(view_details, revision))
 
 def get_second_url_with_first_host(from_url, to_url):
     from_host = split_after_host(from_url)[0]
@@ -122,6 +133,13 @@ def print_if_debug(message):
     if debug:
         print message
 
+def format_timedelta(timedelta):
+    hours, remainder = divmod(timedelta.seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    if timedelta.days:
+        return "%dd %dh %dm" % (timedelta.days, hours, minutes)
+    return "%dh %dm" % (hours, minutes)
+
 def main():
     global verbose, debug
     parser = optparse.OptionParser(usage="""Usage: %prog VIEW_URL [options]
@@ -133,12 +151,15 @@ Gets the highest common stable revision for all jobs in the supplied Jenkins vie
         (options, (url,)) = parser.parse_args()
         verbose = options.verbose
         debug = options.debug
-        revision = find_revision(url)
+        (revision, age) = find_revision(url)
         if verbose:
             print
             print "Last stable revision: %d" % revision
+            print "Revision age: %s" % format_timedelta(age)
         else:
             print revision
+        if age.days:
+            sys.stderr.write("WARNING: Revision is more than one day old!\n")
         return 0
     except ValueError:
         parser.print_help()

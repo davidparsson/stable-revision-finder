@@ -11,6 +11,8 @@ import xmlrunner
 from mockito import mock, when, contains
 from find_last_stable_revision import *
 import find_last_stable_revision
+import json
+from datetime import datetime
 
 
 class AcceptanceTest(unittest.TestCase):
@@ -21,92 +23,74 @@ class AcceptanceTest(unittest.TestCase):
     def setUp(self):
         find_last_stable_revision.urllib = self.urllib
         self.number_of_jobs = 0
+        self.response = {'jobs': []}
 
     def test_does_not_select_buildling_revision(self):
         self.given_job_with_builds(build(2), build(1))
         self.given_job_with_builds(build(2, building=True), build(1))
-        self.assertEqual(1, find_last_stable_revision.find_revision(self.view_url))
+        self.assertEqual(1, find_last_stable_revision.find_revision(self.view_url)[0])
 
     def test_does_not_select_revision_after_buildling_revision(self):
         self.given_job_with_builds(build(3), build(1))
         self.given_job_with_builds(build(2, building=True), build(1))
-        self.assertEqual(1, find_last_stable_revision.find_revision(self.view_url))
+        self.assertEqual(1, find_last_stable_revision.find_revision(self.view_url)[0])
 
     def test_does_not_select_unstable_revision(self):
         self.given_job_with_builds(build(2), build(1))
         self.given_job_with_builds(build(2, stable=False), build(1))
-        self.assertEqual(1, find_last_stable_revision.find_revision(self.view_url))
+        self.assertEqual(1, find_last_stable_revision.find_revision(self.view_url)[0])
 
     def test_does_not_select_revision_after_unstable_build(self):
         self.given_job_with_builds(build(3), build(1))
         self.given_job_with_builds(build(2, stable=False), build(1))
-        self.assertEqual(1, find_last_stable_revision.find_revision(self.view_url))
+        self.assertEqual(1, find_last_stable_revision.find_revision(self.view_url)[0])
 
     def test_selects_stable_revision_after_unstable_build(self):
         self.given_job_with_builds(build(2), build(1))
         self.given_job_with_builds(build(3), build(2, stable=False), build(1))
-        self.assertEqual(3, find_last_stable_revision.find_revision(self.view_url))
+        self.assertEqual(3, find_last_stable_revision.find_revision(self.view_url)[0])
 
     def test_selects_highest_stable_revision(self):
         self.given_job_with_builds(build(3), build(1))
         self.given_job_with_builds(build(2), build(1))
-        self.assertEqual(3, find_last_stable_revision.find_revision(self.view_url))
+        self.assertEqual(3, find_last_stable_revision.find_revision(self.view_url)[0])
 
     def test_selects_revision_even_if_not_built(self):
         self.given_job_with_builds(build(1))
         self.given_job_with_builds()
-        self.assertEqual(1, find_last_stable_revision.find_revision(self.view_url))
+        self.assertEqual(1, find_last_stable_revision.find_revision(self.view_url)[0])
 
     def test_does_not_selects_revision_when_none_built(self):
         self.given_job_with_builds()
         self.given_job_with_builds()
-        self.assertEqual(-1, find_last_stable_revision.find_revision(self.view_url))
+        self.assertEqual(-1, find_last_stable_revision.find_revision(self.view_url)[0])
 
     def test_selects_highest_revision_when_multiple_changes(self):
         self.given_job_with_builds(build([3, 2, 1]))
-        self.assertEqual(3, find_last_stable_revision.find_revision(self.view_url))
+        self.assertEqual(3, find_last_stable_revision.find_revision(self.view_url)[0])
 
     def test_selects_highest_revision_when_not_sorted(self):
         self.given_job_with_builds(build(2), build([1, 7, 3]), build(4))
         self.given_job_with_builds(build(6), build(2), build(5))
-        self.assertEqual(7, find_last_stable_revision.find_revision(self.view_url))
-
-    def test_uses_host_from_argument(self):
-        self.given_job_with_builds(build(2))
-        self.given_configured_jenkins_host_is("http://proxyhost/")
-        self.assertEqual(2, find_last_stable_revision.find_revision(self.view_url))
+        self.assertEqual(7, find_last_stable_revision.find_revision(self.view_url)[0])
 
     def given_job_with_builds(self, *builds):
-        response = self.create_builds_response(builds)
-        self.given_new_job_with_response(response)
+        job_number = len(self.response['jobs'])
+        current_job = job(job_number)
+        current_job['builds'] = builds
 
-    def given_new_job_with_response(self, response):
-        url = "http://jenkins/job/job%d/api/python?tree=builds" % self.number_of_jobs
-        self.number_of_jobs += 1
+        self.response['jobs'].append(current_job)
 
-        self.given_response_for_url(url, response)
-        self.given_number_of_jobs(self.number_of_jobs)
+        self.rebuild_response()
 
-    def given_number_of_jobs(self, number_of_jobs):
-        response = self.create_jobs_response(number_of_jobs)
+    def rebuild_response(self):
+        response = str(self.response)
         self.given_response_for_url("?tree=jobs", response)
 
     def given_response_for_url(self, url, response):
         open_url = mock()
         when(self.urllib).urlopen(contains(url)).thenReturn(open_url)
         when(open_url).read().thenReturn(response)
-
-    def given_configured_jenkins_host_is(self, host):
-        response = self.create_jobs_response(self.number_of_jobs)
-        response.replace("http://jenkins/", host)
-        self.given_response_for_url("?tree=jobs", response)
-
-    def create_jobs_response(self, number_of_jobs):
-        return '{"jobs":[%s]}' % ','.join([job(i) for i in range(number_of_jobs)])
-
-    def create_builds_response(self, builds):
-        return '{"builds":[%s]}' % ','.join(builds)
-
 
 class TestRevisionStatuses(unittest.TestCase):
 
@@ -140,7 +124,7 @@ class TestRevisionStatuses(unittest.TestCase):
         self.assertTrue(self.revision_statuses.is_revision_stable(1))
 
 
-def build(revisions=[], building=False, stable=True):
+def build(revisions=[], building=False, stable=True, timestamp=0):
     if stable:
         result = 'SUCCESS'
     else:
@@ -149,11 +133,12 @@ def build(revisions=[], building=False, stable=True):
     if type(revisions) != list:
         revisions = [revisions]
 
-    return str({'building': building, 'result': result, 'changeSet': {'items': [{'revision': revision} for revision in revisions]}})
+    changes = [{'revision': revision, 'timestamp': timestamp} for revision in revisions]
+    return {'building': building, 'result': result, 'changeSet': {'items': changes}}
 
 
 def job(number):
-    return str({'name': 'job%d' % number, 'url': 'http://jenkins/job/job%d/' % number})
+    return {'name': 'job%d' % number, 'url': 'http://jenkins/job/job%d/' % number}
 
 
 if __name__ == '__main__':
