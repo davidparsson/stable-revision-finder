@@ -156,10 +156,10 @@ Gets the highest common stable revision for all jobs in the supplied Jenkins vie
             print
             print "Last stable revision: %d" % revision
             print "Revision age: %s" % format_timedelta(age)
+            if age.days:
+                print "WARNING: Revision is more than one day old!"
         else:
             print revision
-        if age.days:
-            sys.stderr.write("WARNING: Revision is more than one day old!\n")
         return 0
     except ValueError:
         parser.print_help()
