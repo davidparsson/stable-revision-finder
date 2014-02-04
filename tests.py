@@ -14,14 +14,29 @@ import find_last_stable_revision
 import json
 from datetime import datetime
 
+class FakeDatetime():
+
+    def __init__(self, datetime_mock):
+        self.datetime_mock = datetime_mock
+
+    def now(self):
+        return self.datetime_mock.now()
+
+    def fromtimestamp(self, timestamp):
+        return datetime.fromtimestamp(timestamp)
+
 
 class AcceptanceTest(unittest.TestCase):
 
-    urllib = mock()
     view_url = "http://jenkins/view"
 
     def setUp(self):
+        self.urllib = mock()
+        self.datetime_mock = mock()
+        self.datetime_fake = FakeDatetime(self.datetime_mock)
+        self.given_time_is(0)
         find_last_stable_revision.urllib = self.urllib
+        find_last_stable_revision.datetime = self.datetime_fake
         self.number_of_jobs = 0
         self.response = {'jobs': []}
 
@@ -73,6 +88,14 @@ class AcceptanceTest(unittest.TestCase):
         self.given_job_with_builds(build(2), build([1, 7, 3]), build(4))
         self.given_job_with_builds(build(6), build(2), build(5))
         self.assertEqual(7, find_last_stable_revision.find_revision(self.view_url)[0])
+
+    def test_gets_timestamp_for_revision(self):
+        self.given_time_is(5)
+        self.given_job_with_builds(build(3, timestamp=3), build(2, timestamp=2))
+        self.assertEqual(2, find_last_stable_revision.find_revision(self.view_url)[1].seconds)
+
+    def given_time_is(self, timestamp):
+        when(self.datetime_mock).now().thenReturn(datetime.fromtimestamp(timestamp))
 
     def given_job_with_builds(self, *builds):
         job_number = len(self.response['jobs'])
@@ -133,7 +156,7 @@ def build(revisions=[], building=False, stable=True, timestamp=0):
     if type(revisions) != list:
         revisions = [revisions]
 
-    changes = [{'revision': revision, 'timestamp': timestamp} for revision in revisions]
+    changes = [{'revision': revision, 'timestamp': timestamp * 1e3} for revision in revisions]
     return {'building': building, 'result': result, 'changeSet': {'items': changes}}
 
 
