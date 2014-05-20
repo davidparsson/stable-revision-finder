@@ -117,28 +117,19 @@ def find_revision(url, include_patterns=[], exclude_patterns=[]):
                 for item in build['changeSet']['items']:
                     revision_statuses.add_unstable_revision(item['revision'])
     revision = get_highest_stable_revision(list(eligible_revisions), revisions_by_job)
-    print revisions_by_job
-    print eligible_revisions
     return (revision, get_age_of_revision(view_details, revision))
 
 def include_job(job_name, include_patterns, exclude_patterns):
     exclude = False
     include = False
-    print
-    print job_name
-    print include_patterns
-    print exclude_patterns
-    print
     if include_patterns:
         for pattern in include_patterns:
             if re.match(pattern, job_name):
-                print "including"
                 include = True
     else:
         include = True
     for pattern in exclude_patterns:
         if re.match(pattern, job_name):
-            print "excluding"
             exclude = True
     return include and not exclude
 
