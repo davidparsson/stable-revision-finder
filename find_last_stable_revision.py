@@ -91,12 +91,15 @@ def get_age_of_revision(view_details, revision):
     revision_timestamp = get_timestamp_for_revision(view_details, revision)
     return datetime.now() - datetime.fromtimestamp(revision_timestamp)
 
-def find_revision(url, verbose=False):
+def find_revision(url, include_patterns=[], exclude_patterns=[]):
     view_details = parse(url, "jobs[name,url,builds[building,result,changeSet[items[revision,timestamp]]]]")
 
     revisions_by_job = {}
     eligible_revisions = set()
     for job in view_details['jobs']:
+        if not include_job(job['name'], include_patterns, exclude_patterns):
+            print_if_verbose("Excluding %s" % job['name'])
+            continue
         print_if_verbose("Checking %s..." % job['name'])
         revision_statuses = RevisionStatuses()
         revisions_by_job[job['name']] = revision_statuses
@@ -114,7 +117,31 @@ def find_revision(url, verbose=False):
                 for item in build['changeSet']['items']:
                     revision_statuses.add_unstable_revision(item['revision'])
     revision = get_highest_stable_revision(list(eligible_revisions), revisions_by_job)
+    print revisions_by_job
+    print eligible_revisions
     return (revision, get_age_of_revision(view_details, revision))
+
+def include_job(job_name, include_patterns, exclude_patterns):
+    exclude = False
+    include = False
+    print
+    print job_name
+    print include_patterns
+    print exclude_patterns
+    print
+    if include_patterns:
+        for pattern in include_patterns:
+            if re.match(pattern, job_name):
+                print "including"
+                include = True
+    else:
+        include = True
+    for pattern in exclude_patterns:
+        if re.match(pattern, job_name):
+            print "excluding"
+            exclude = True
+    return include and not exclude
+
 
 def get_second_url_with_first_host(from_url, to_url):
     from_host = split_after_host(from_url)[0]
@@ -146,12 +173,16 @@ def main():
     try:
         parser.add_argument("-v", "--verbose", help="Prints progress, instead of only the revision", action="store_true", default=False)
         parser.add_argument("-d", "--debug", help="Prints web requests", action="store_true", default=False)
+
+        parser.add_argument('--include', default=[], nargs='+', help='Include pattern(s) in regex')
+        parser.add_argument('--exclude', default=[], nargs='+', help='Exclude pattern(s) in regex')
+
         parser.add_argument("view_url", metavar="VIEW_URL")
 
         options = parser.parse_args()
         verbose = options.verbose
         debug = options.debug
-        (revision, age) = find_revision(options.view_url)
+        (revision, age) = find_revision(options.view_url, options.include, options.exclude)
         if verbose:
             print
             print "Last stable revision: %d" % revision
