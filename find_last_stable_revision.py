@@ -2,7 +2,7 @@
 import ast
 import urllib
 import sys
-import optparse
+import argparse
 import re
 import sys
 from datetime import datetime
@@ -142,16 +142,16 @@ def format_timedelta(timedelta):
 
 def main():
     global verbose, debug
-    parser = optparse.OptionParser(usage="""Usage: %prog VIEW_URL [options]
-
-Gets the highest common stable revision for all jobs in the supplied Jenkins view.""")
-    parser.add_option("-v", "--verbose", help="Prints progress, instead of only the revision", action="store_true", default=False)
-    parser.add_option("-d", "--debug", help="Prints web requests", action="store_true", default=False)
+    parser = argparse.ArgumentParser(description="Gets the highest common stable revision for all jobs in the supplied Jenkins view.", formatter_class=argparse.RawDescriptionHelpFormatter)
     try:
-        (options, (url,)) = parser.parse_args()
+        parser.add_argument("-v", "--verbose", help="Prints progress, instead of only the revision", action="store_true", default=False)
+        parser.add_argument("-d", "--debug", help="Prints web requests", action="store_true", default=False)
+        parser.add_argument("view_url", metavar="VIEW_URL")
+
+        options = parser.parse_args()
         verbose = options.verbose
         debug = options.debug
-        (revision, age) = find_revision(url)
+        (revision, age) = find_revision(options.view_url)
         if verbose:
             print
             print "Last stable revision: %d" % revision
