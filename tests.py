@@ -99,6 +99,16 @@ class AcceptanceTest(unittest.TestCase):
         self.given_job_with_builds(build(3, timestamp=3, stable=False), build(2, timestamp=2))
         self.assertEqual(3, find_last_stable_revision.find_revision(self.view_url)[1].seconds)
 
+    def test_will_only_consider_included_jobs(self):
+        self.given_job_with_builds(build(2), build(1))
+        self.given_job_with_builds(build(2, stable=False), build(1))
+        self.assertEqual(2, find_last_stable_revision.find_revision(self.view_url, include_patterns=['job0'])[0])
+
+    def test_will_not_consider_excluded_jobs(self):
+        self.given_job_with_builds(build(2), build(1))
+        self.given_job_with_builds(build(2, stable=False), build(1))
+        self.assertEqual(2, find_last_stable_revision.find_revision(self.view_url, exclude_patterns=['job1'])[0])
+
     def given_time_is(self, timestamp):
         when(self.datetime_mock).now().thenReturn(datetime.fromtimestamp(timestamp))
 
